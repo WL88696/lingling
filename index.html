@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>我的视频</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="我的视频">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; margin: 0; padding: 20px; background: #fff; }
+        .video-list { list-style: none; padding: 0; }
+        .video-item { padding: 16px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 18px; }
+        .video-item:active { background: #f0f0f0; }
+        video { width: 100%; max-height: 80vh; background: black; }
+        button { padding: 10px 20px; margin-bottom: 15px; background: #007aff; color: white; border: none; border-radius: 8px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h2 style="margin-top:0;">视频列表</h2>
+    <button onclick="loadVideos()">刷新列表</button>
+    <ul class="video-list" id="list"></ul>
+
+    <div id="player-container" style="display:none;">
+        <video id="player" controls playsinline webkit-playsinline></video>
+        <button onclick="backToList()" style="margin-top:12px;">← 返回列表</button>
+    </div>
+
+    <script>
+        // ========== 换成你自己的 Supabase 信息 ==========
+        const SUPABASE_URL = 'https://你的PROJECT_URL.supabase.co';
+        const SUPABASE_ANON_KEY = '你的anon public key';
+        // ================================================
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const listEl = document.getElementById('list');
+        const playerContainer = document.getElementById('player-container');
+        const player = document.getElementById('player');
+        let videos = [];
+
+        async function loadVideos() {
+            const { data, error } = await supabase
+                .from('videos')
+                .select('title, video_url')
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                listEl.innerHTML = '<li>加载失败，请检查网络</li>';
+                return;
+            }
+            videos = data || [];
+            renderList();
+        }
+
+        function renderList() {
+            playerContainer.style.display = 'none';
+            listEl.style.display = 'block';
+            listEl.innerHTML = videos.map((v, i) => 
+                `<li class="video-item" onclick="playVideo(${i})">${v.title}</li>`
+            ).join('');
+        }
+
+        function playVideo(index) {
+            const video = videos[index];
+            player.src = video.video_url;
+            player.load();
+            listEl.style.display = 'none';
+            playerContainer.style.display = 'block';
+            player.play();
+        }
+
+        function backToList() {
+            player.pause();
+            player.src = '';
+            renderList();
+        }
+
+        loadVideos();
+
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
